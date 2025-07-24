@@ -15,8 +15,9 @@ DVW_WFS/
 │   │   ├── DVW_indeling.gpkg
 │   │   └── DVW_percelen.gpkg
 │   └── output/
-│       ├── EWS_kern.gpkg
-│       └── EWS_percelen.gpkg
+│       ├── EWS_kern_20250723.gpkg
+│       ├── EWS_percelen_20250723.gpkg
+│       ├── ... (max. 6 versies)
 ├── src/
 │   └── riparias_download.R
 ├── .github/
