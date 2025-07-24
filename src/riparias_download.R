@@ -1,3 +1,5 @@
+# src/riparias_download.R
+
 library(curl)
 library(readr)
 library(dplyr)
@@ -6,7 +8,7 @@ library(stringr)
 library(rgbif)
 library(leaflet)
 
-# 1. WFS-CSV downloaden met curl (inclusief voortgangsindicatie)
+# 1. WFS-CSV downloaden met curl
 url <- "https://alert.riparias.be/api/wfs/observations?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=observation&OUTPUTFORMAT=csv"
 tempfile_csv <- tempfile(fileext = ".csv")
 
@@ -28,7 +30,7 @@ tryCatch({
   stop("Download mislukt: ", e$message)
 })
 
-# 2. CSV inlezen en coördinaten extraheren uit het 'location'-veld
+# 2. CSV lezen en coördinaten extraheren
 EWS_WFS <- read_csv(tempfile_csv, show_col_types = FALSE) %>%
   mutate(
     coords = str_remove(location, "^SRID=3857;POINT\\("),
@@ -38,7 +40,7 @@ EWS_WFS <- read_csv(tempfile_csv, show_col_types = FALSE) %>%
   ) %>%
   filter(!is.na(x) & !is.na(y))
 
-# 3. GBIF-checklist ophalen en filteren
+# 3. GBIF-checklist ophalen
 checklist <- name_lookup(datasetKey = "23e95da2-6095-4778-b893-9af18a310cb6")
 species_keys <- checklist$data %>%
   filter(!rank %in% c("KINGDOM", "PHYLUM", "CLASS", "ORDER", "FAMILY", "GENUS")) %>%
@@ -48,27 +50,27 @@ species_keys <- checklist$data %>%
 EWS_WFS_spec <- EWS_WFS %>%
   filter(species_gbif_key %in% species_keys)
 
-# 4. Omzetten naar sf-object in Lambert 72
+# 4. Naar sf object in Lambert 72
 EWS_WFS_spec_sf <- st_as_sf(EWS_WFS_spec, coords = c("x", "y"), crs = 3857) %>%
-  st_transform(crs = 31370)
+  st_transform(31370)
 
-# 5. DVW-shapefiles inlezen
-base_path <- "C:/Users/frederique_steen/Documents/GitHub/DVW_WFS/data"
-dvw_indeling <- st_read(file.path(base_path, "DVW_indeling.gpkg")) %>% st_transform(31370)
-dvw_percelen <- st_read(file.path(base_path, "DVW_percelen.gpkg")) %>% st_transform(31370)
+# 5. Inlezen shapefiles uit data/input/
+input_path <- "data/input"
+dvw_indeling <- st_read(file.path(input_path, "DVW_indeling.gpkg")) %>% st_transform(31370)
+dvw_percelen <- st_read(file.path(input_path, "DVW_percelen.gpkg")) %>% st_transform(31370)
 
-# 6. Intersectie uitvoeren
-intersect_indeling <- st_intersects(EWS_WFS_spec_sf, dvw_indeling, sparse = FALSE)
-EWS_kern <- EWS_WFS_spec_sf[rowSums(intersect_indeling) > 0, ]
+# 6. Intersecties
+EWS_kern <- EWS_WFS_spec_sf[st_intersects(EWS_WFS_spec_sf, dvw_indeling, sparse = FALSE)[,1], ]
+EWS_percelen <- EWS_WFS_spec_sf[st_intersects(EWS_WFS_spec_sf, dvw_percelen, sparse = FALSE)[,1], ]
 
-intersect_percelen <- st_intersects(EWS_WFS_spec_sf, dvw_percelen, sparse = FALSE)
-EWS_percelen <- EWS_WFS_spec_sf[rowSums(intersect_percelen) > 0, ]
+# 7. Export
+output_path <- "data/output"
+dir.create(output_path, showWarnings = FALSE, recursive = TRUE)
 
-# 7. Export naar GeoPackage-bestanden
-st_write(EWS_kern, "./data/output/EWS_kern.gpkg", layer = "observaties", delete_dsn = TRUE)
-st_write(EWS_percelen, "./data/output/EWS_percelen.gpkg", layer = "observaties", delete_dsn = TRUE)
+st_write(EWS_kern, file.path(output_path, "EWS_kern.gpkg"), layer = "observaties", delete_dsn = TRUE)
+st_write(EWS_percelen, file.path(output_path, "EWS_percelen.gpkg"), layer = "observaties", delete_dsn = TRUE)
 
-# 8. Visualisatie met Leaflet
+# 8. Visualisatie (optioneel)
 layers <- list(
   EWS_kern = EWS_kern,
   EWS_percelen = EWS_percelen,
