@@ -55,13 +55,13 @@ EWS_WFS_spec_sf <- st_as_sf(EWS_WFS_spec, coords = c("x", "y"), crs = 3857) %>%
   st_transform(31370)
 
 # 5. Inlezen shapefiles uit data/input/
-input_path <- "data/input"
+input_path <- "./data/input"
 dvw_indeling <- st_read(file.path(input_path, "DVW_indeling.gpkg")) %>% st_transform(31370)
 dvw_percelen <- st_read(file.path(input_path, "DVW_percelen.gpkg")) %>% st_transform(31370)
 
 # 6. Intersecties
-EWS_kern <- EWS_WFS_spec_sf[st_intersects(EWS_WFS_spec_sf, dvw_indeling, sparse = FALSE)[,1], ]
-EWS_percelen <- EWS_WFS_spec_sf[st_intersects(EWS_WFS_spec_sf, dvw_percelen, sparse = FALSE)[,1], ]
+EWS_kern <- st_filter(EWS_WFS_spec_sf, dvw_indeling)
+EWS_percelen <- st_filter(EWS_WFS_spec_sf, dvw_percelen)
 
 # 7. Export
 output_path <- "data/output"
