@@ -1,9 +1,9 @@
-name: Weekly GBIF Download (test run)
+name: Weekly GBIF Download (met caching & latest)
 
 on:
   schedule:
-    - cron: "0 13 * * *"   # vandaag 15u lokale tijd (13u UTC)
-  workflow_dispatch:        # ook handmatig te starten via GitHub
+    - cron: "0 6 * * 1"   # elke maandag om 06u UTC
+  workflow_dispatch:
 
 jobs:
   run-script:
@@ -16,6 +16,13 @@ jobs:
       - name: Set up R
         uses: r-lib/actions/setup-r@v2
 
+      - name: Cache R packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.R_LIBS_USER }}
+          key: ${{ runner.os }}-r-${{ hashFiles('**/DESCRIPTION') }}
+          restore-keys: ${{ runner.os }}-r-
+
       - name: Install R dependencies
         run: |
           Rscript -e 'install.packages(c("tidyverse","here","rgbif","lubridate","sf","leaflet"))'
@@ -26,12 +33,19 @@ jobs:
           GBIF_PWD: ${{ secrets.GBIF_PWD }}
           GBIF_EMAIL: ${{ secrets.GBIF_EMAIL }}
         run: |
-          Rscript gbif_download_dvw.R
+          Rscript EWS_script.R
+
+      - name: Maak latest.gpkg kopieën
+        run: |
+          kern=$(ls data/output/EWS_kern_*.gpkg | sort | tail -n 1)
+          percelen=$(ls data/output/EWS_percelen_*.gpkg | sort | tail -n 1)
+          cp "$kern" data/output/EWS_kern_latest.gpkg
+          cp "$percelen" data/output/EWS_percelen_latest.gpkg
 
       - name: Commit & push updated data
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add data/output/*.gpkg data/output/gbif_download_log.csv
-          git commit -m "Automated update: $(date +'%Y-%m-%d %H:%M')" || echo "No changes"
+          git commit -m "Automated update: $(date +'%Y-%m-%d')" || echo "No changes"
           git push
