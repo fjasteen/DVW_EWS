@@ -9,20 +9,38 @@ library(rgbif)
 library(leaflet)
 library(tools)
 
-# --- 1. GeoJSON downloaden met curl ---
+# --- 1. WFS-CSV downloaden met curl ---
 
-# url <- "https://alert.riparias.be/api/wfs/observations?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=observation&OUTPUTFORMAT=geojson"
-# dest <- "./data/input/ews_full.geojson"
-# 
-# system(sprintf("curl -L -o %s \"%s\"", dest, url))
-# 
-# 
-# # --- 2. GeoJSON inlezen ---
-# 
-# 
-# EWS_WFS <- st_read(dest, quiet = TRUE)
-# EWS_WFS <- st_read("./data/observations.geojson", quiet = TRUE)
+url <- "https://alert.riparias.be/api/wfs/observations?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=observation&OUTPUTFORMAT=csv"
+tempfile_csv <- tempfile(fileext = ".csv")
 
+h <- new_handle()
+handle_setopt(h, noprogress = FALSE, progressfunction = function(down, up, total_down, total_up) {
+  cat(sprintf("\rGedownload: %.2f MB", down / 1024 / 1024))
+  flush.console()
+  TRUE
+})
+
+tryCatch({
+  curl_download(url, destfile = tempfile_csv, mode = "wb", handle = h)
+  cat("\nDownload voltooid.\n")
+  size_mb <- file.info(tempfile_csv)$size / 1024 / 1024
+  cat(sprintf("Bestandsgrootte: %.2f MB\n", size_mb))
+  if (size_mb < 5) warning("Bestand is mogelijk onvolledig.")
+}, error = function(e) {
+  stop("Download mislukt: ", e$message)
+})
+
+# --- 2. CSV lezen en coördinaten extraheren ---
+
+EWS_WFS <- read_csv(tempfile_csv, show_col_types = FALSE) %>%
+  mutate(
+    coords = str_remove(location, "^SRID=3857;POINT\\("),
+    coords = str_remove(coords, "\\)$"),
+    x = as.numeric(str_extract(coords, "^[^ ]+")),
+    y = as.numeric(str_extract(coords, "[^ ]+$"))
+  ) %>%
+  filter(!is.na(x) & !is.na(y))
 
 # --- 3. GBIF-checklist ophalen ---
 
@@ -105,24 +123,24 @@ layers_wgs <- lapply(layers, st_transform, crs = 4326)
 
 leaflet() %>%
   addProviderTiles("CartoDB.Positron") %>%
-  
+
   addPolygons(data = layers_wgs$dvw_indeling, color = "#999999", weight = 1, fillOpacity = 0.2, group = "DVW Indeling") %>%
   addPolygons(data = layers_wgs$dvw_percelen, color = "#666666", weight = 1, fillOpacity = 0.2, group = "DVW Percelen") %>%
-  
+
   # EWS Kern: oud
   addCircleMarkers(data = layers_wgs$EWS_kern[!layers$EWS_kern$nieuw, ],
                    radius = 4, stroke = FALSE, fillColor = "#3182bd", fillOpacity = 0.7, group = "EWS Kern") %>%
   # EWS Kern: nieuw
   addCircleMarkers(data = layers_wgs$EWS_kern[layers$EWS_kern$nieuw, ],
                    radius = 4, stroke = FALSE, fillColor = "#006400", fillOpacity = 0.9, group = "Nieuwe Kern") %>%
-  
+
   # EWS Percelen: oud
   addCircleMarkers(data = layers_wgs$EWS_percelen[!layers$EWS_percelen$nieuw, ],
                    radius = 4, stroke = TRUE, color = "#e41a1c", weight = 1, fillOpacity = 1, group = "EWS Percelen") %>%
   # EWS Percelen: nieuw
   addCircleMarkers(data = layers_wgs$EWS_percelen[layers$EWS_percelen$nieuw, ],
                    radius = 4, stroke = TRUE, color = "#ADFF2F", weight = 1, fillOpacity = 1, group = "Nieuwe Percelen") %>%
-  
+
   addLayersControl(
     overlayGroups = c("EWS Percelen", "Nieuwe Percelen", "EWS Kern", "Nieuwe Kern", "DVW Indeling", "DVW Percelen"),
     options = layersControlOptions(collapsed = FALSE)

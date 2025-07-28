@@ -1,0 +1,23 @@
+# Negeer R-projectbestanden  
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+
+# Negeer het bestand met gevoelige GBIF-inloggegevens  
+.Renviron  
+
+# Negeer tijdelijke data  
+data/input/raw/  
+
+# Negeer ongewenste cache- en logbestanden  
+*.zip  
+*.tmp  
+*.log  
+
+# Negeer oude GeoPackages behalve de laatste  
+data/output/EWS_kern_*.gpkg  
+data/output/EWS_percelen_*.gpkg  
+
+# Laat de log csv wel toe (voor versiebeheer), maar indien nodig:  
+# data/output/gbif_download_log.csv  

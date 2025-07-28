@@ -1,0 +1,80 @@
+#######################################################
+#Download GBIF occurrences for DVW priority species
+#######################################################
+# Date: Sys.Date()
+
+# In this script, we download species occurrences for Belgium from GBIF 
+# to feed alien species indicators and emerging species assessments.
+
+# Load libraries
+library(tidyverse)      # To do data science
+library(here)           # To find files
+library(rgbif)          # To use GBIF services
+library(trias)          # To use functions developed for TrIAS
+library(lubridate)      # To work with dates
+
+# Define download query parameters -----------------------------------------
+#Get datasetKey from the online checklist Flemish Waterways
+datasetKey <- "23e95da2-6095-4778-b893-9af18a310cb6"
+DVW_list <- name_usage(datasetKey = datasetKey)
+
+# Make a list of taxa from DVW-checklist from the dataframe
+species_list <- DVW_list$data %>% 
+  filter(origin == "SOURCE")
+
+# Define country to get data for
+countries <- c("BE")
+
+# Define basis of record
+# Excluding "FOSSIL SPECIMEN" and "LIVING SPECIMEN"
+basis_of_record <- c(
+  "OBSERVATION", 
+  "HUMAN_OBSERVATION",
+  "MATERIAL_SAMPLE", 
+  "LITERATURE", 
+  "PRESERVED_SPECIMEN", 
+  "UNKNOWN", 
+  "MACHINE_OBSERVATION"
+)
+
+# Define years
+year_begin <- 2000
+year_end <- year(Sys.Date())
+
+# Only occurrences with valid geographic coordinates
+hasCoordinate <- TRUE
+
+# Download GBIF occurrences ------------------------------------------------
+
+# Trigger download
+# Uncomment the section below to trigger a new download, 
+# or reuse an existing download key
+
+# gbif_download_key <- "0038995-24112613341336" # Reuse existing download key
+
+# Trigger new download (commented by default)
+gbif_download_key <- occ_download(
+  pred_in("taxonKey", species_list$nubKey),
+   pred_in("country", countries),
+   pred_in("basisOfRecord", basis_of_record),
+   pred_gte("year", year_begin),
+   pred_lte("year", year_end),
+   pred("hasCoordinate", hasCoordinate),
+   user = rstudioapi::askForPassword("GBIF username"),
+   pwd = rstudioapi::askForPassword("GBIF password"),
+   email = rstudioapi::askForPassword("Email address for notification")
+ )
+
+# Check status of download
+metadata <- occ_download_meta(key = gbif_download_key)
+cat("Download Key:", metadata$key, "\n")
+cat("Download Status:", metadata$status, "\n")
+
+# Write download key to list of downloads
+update_download_list(
+  file = here::here("data", "raw", "gbif_downloads.tsv"), 
+  download_to_add = gbif_download_key, 
+  input_checklist = ""
+)
+
+# End of script

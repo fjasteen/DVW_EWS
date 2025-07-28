@@ -1,36 +1,37 @@
-name: Update EWS Data
+name: Weekly GBIF Download (test run)
 
 on:
   schedule:
-    - cron: '0 6 * * 1'  # wekelijks maandagochtend om 6u
-  workflow_dispatch:
+    - cron: "0 13 * * *"   # vandaag 15u lokale tijd (13u UTC)
+  workflow_dispatch:        # ook handmatig te starten via GitHub
 
 jobs:
-  build:
+  run-script:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
-    - uses: r-lib/actions/setup-r@v2
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Installeer R-packages
-      run: |
-        Rscript -e 'install.packages(c("curl", "readr", "dplyr", "sf", "stringr", "rgbif", "leaflet"))'
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
 
-    - name: Run RIPARIAS WFS script
-      run: Rscript src/riparias_download.R
+      - name: Install R dependencies
+        run: |
+          Rscript -e 'install.packages(c("tidyverse","here","rgbif","lubridate","sf","leaflet"))'
 
-    - name: Verwijder oude bestanden (>6)
-      run: |
-        cd data/output
-        ls -tp | grep -v '/$' | tail -n +7 | xargs -d '\n' rm -f --
+      - name: Run R script
+        env:
+          GBIF_USER: ${{ secrets.GBIF_USER }}
+          GBIF_PWD: ${{ secrets.GBIF_PWD }}
+          GBIF_EMAIL: ${{ secrets.GBIF_EMAIL }}
+        run: |
+          Rscript gbif_download_dvw.R
 
-    - name: Commit en push output
-      run: |
-        git config --global user.name 'github-actions'
-        git config --global user.email 'actions@github.com'
-        git add data/output/*.gpkg
-        git commit -m "Update output: $(date +'%Y-%m-%d')" || echo "Geen wijzigingen."
-        git push
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Commit & push updated data
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add data/output/*.gpkg data/output/gbif_download_log.csv
+          git commit -m "Automated update: $(date +'%Y-%m-%d %H:%M')" || echo "No changes"
+          git push
