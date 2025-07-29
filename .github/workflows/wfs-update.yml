@@ -53,8 +53,8 @@ jobs:
 
       - name: Maak latest.gpkg kopieën
         run: |
-          kern=$(ls data/output/EWS_kern_*.gpkg | sort | tail -n 1)
-          percelen=$(ls data/output/EWS_percelen_*.gpkg | sort | tail -n 1)
+          kern=$(ls data/output/EWS_kern*.gpkg | sort | tail -n 1)
+          percelen=$(ls data/output/EWS_percelen*.gpkg | sort | tail -n 1)
           cp "$kern" data/output/EWS_kern_latest.gpkg
           cp "$percelen" data/output/EWS_percelen_latest.gpkg
 
