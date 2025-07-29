@@ -14,8 +14,17 @@
 #######################################################
 
 # ------------------------------------------------------------------
-# 0. Laad benodigde libraries
+# 0. Controleer en installeer ontbrekende libraries (fallback)
 # ------------------------------------------------------------------
+required_packages <- c("tidyverse", "here", "rgbif", "lubridate", "sf", "leaflet")
+
+for (pkg in required_packages) {
+  if (!requireNamespace(pkg, quietly = TRUE)) {
+    message(paste("Package", pkg, "niet gevonden. Installeren..."))
+    install.packages(pkg, repos = "https://cloud.r-project.org")
+  }
+}
+
 library(tidyverse)      # Data manipulatie (dplyr, readr, etc.)
 library(here)           # Makkelijk werken met relatieve paden
 library(rgbif)          # Communicatie met de GBIF API
