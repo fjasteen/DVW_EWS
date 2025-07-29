@@ -299,6 +299,8 @@ layers <- list(
 )
 layers_wgs <- lapply(layers, st_transform, crs = 4326)
 
+
+if (interactive()) {
 leaflet() %>%
   addProviderTiles("CartoDB.Positron") %>%
   
@@ -324,3 +326,4 @@ leaflet() %>%
     overlayGroups = c("EWS Percelen", "Nieuwe Percelen", "EWS Kern", "Nieuwe Kern", "DVW Indeling", "DVW Percelen"),
     options = layersControlOptions(collapsed = FALSE)
   )
+}
