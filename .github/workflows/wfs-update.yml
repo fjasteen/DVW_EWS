@@ -25,7 +25,8 @@ jobs:
 
       - name: Install R dependencies
         run: |
-          Rscript -e 'install.packages(c("tidyverse","here","rgbif","lubridate","sf","leaflet"))'
+          Rscript -e 'install.packages(c("tidyverse","here","rgbif","lubridate","sf","leaflet"), repos="https://cloud.r-project.org")'
+
 
       - name: Run R script
         env:
