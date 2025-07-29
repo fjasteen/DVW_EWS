@@ -33,7 +33,7 @@ jobs:
           GBIF_PWD: ${{ secrets.GBIF_PWD }}
           GBIF_EMAIL: ${{ secrets.GBIF_EMAIL }}
         run: |
-          Rscript EWS_script.R
+          Rscript src/EWS_script.R
 
       - name: Maak latest.gpkg kopieën
         run: |
