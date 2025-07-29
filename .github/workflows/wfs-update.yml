@@ -16,20 +16,33 @@ jobs:
       - name: Set up R
         uses: r-lib/actions/setup-r@v2
 
-      # Cache R libraries (niet afhankelijk van DESCRIPTION)
+      - name: Install Linux system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libcurl4-openssl-dev \
+            libpng-dev \
+            libharfbuzz-dev \
+            libfribidi-dev \
+            libfreetype6-dev \
+            libfontconfig1-dev \
+            libxml2-dev \
+            libudunits2-dev \
+            libgdal-dev \
+            libgeos-dev \
+            libproj-dev
+
       - name: Cache R packages
         uses: actions/cache@v4
         with:
           path: ${{ env.R_LIBS_USER }}
-          key: ${{ runner.os }}-r-cache
+          key: ${{ runner.os }}-r-${{ hashFiles('**/DESCRIPTION') }}
           restore-keys: ${{ runner.os }}-r-
 
-      # Installeer alle benodigde libraries
       - name: Install R dependencies
         run: |
-          Rscript -e 'install.packages(c("tidyverse","here","rgbif","lubridate","sf","leaflet"), repos = "https://cloud.r-project.org")'
+          Rscript -e 'install.packages(c("tidyverse","here","rgbif","lubridate","sf","leaflet"), repos="https://cloud.r-project.org")'
 
-      # Run je hoofdscript
       - name: Run R script
         env:
           GBIF_USER: ${{ secrets.GBIF_USER }}
@@ -38,7 +51,6 @@ jobs:
         run: |
           Rscript src/EWS_script.R
 
-      # Maak een latest.gpkg kopie
       - name: Maak latest.gpkg kopieën
         run: |
           kern=$(ls data/output/EWS_kern_*.gpkg | sort | tail -n 1)
@@ -46,7 +58,6 @@ jobs:
           cp "$kern" data/output/EWS_kern_latest.gpkg
           cp "$percelen" data/output/EWS_percelen_latest.gpkg
 
-      # Commit en push data
       - name: Commit & push updated data
         run: |
           git config user.name "github-actions"
