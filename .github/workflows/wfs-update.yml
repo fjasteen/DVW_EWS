@@ -51,12 +51,30 @@ jobs:
         run: |
           Rscript src/EWS_script.R
 
-      - name: Maak latest.gpkg kopieën
+	- name: Maak latest.gpkg kopieën
         run: |
-          kern=$(ls data/output/EWS_kern*.gpkg | sort | tail -n 1)
-          percelen=$(ls data/output/EWS_percelen*.gpkg | sort | tail -n 1)
-          cp "$kern" data/output/EWS_kern_latest.gpkg
-          cp "$percelen" data/output/EWS_percelen_latest.gpkg
+          # Zoek het nieuwste kern-bestand, maar negeer '_latest'
+          kern=$(ls data/output/EWS_kern*.gpkg | grep -v '_latest.gpkg' | sort | tail -n 1)
+          
+          # Zoek het nieuwste percelen-bestand, maar negeer '_latest'
+          percelen=$(ls data/output/EWS_percelen*.gpkg | grep -v '_latest.gpkg' | sort | tail -n 1)
+
+          # Controleer of de bestanden daadwerkelijk bestaan voordat u kopieert
+          if [ -f "$kern" ]; then
+            echo "Kopieer bron kern: $kern"
+            cp "$kern" data/output/EWS_kern_latest.gpkg
+          else
+            echo "::error:: Geen nieuw EWS_kern bronbestand gevonden."
+            exit 1
+          fi
+
+          if [ -f "$percelen" ]; then
+            echo "Kopieer bron percelen: $percelen"
+            cp "$percelen" data/output/EWS_percelen_latest.gpkg
+          else
+            echo "::error:: Geen nieuw EWS_percelen bronbestand gevonden."
+            exit 1
+          fi
 
       - name: Commit & push updated data
         run: |
