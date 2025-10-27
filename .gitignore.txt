@@ -7,8 +7,9 @@
 # Negeer het bestand met gevoelige GBIF-inloggegevens  
 .Renviron  
 
-# Negeer tijdelijke data  
-data/input/raw/  
+# Negeer tijdelijke data en DVW polygonen
+data/input/raw/
+data/input/  
 
 # Negeer ongewenste cache- en logbestanden  
 *.zip  
