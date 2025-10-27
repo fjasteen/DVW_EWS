@@ -158,22 +158,27 @@ gbif_sf <- st_as_sf(
 # Transformeer naar Lambert 72 (EPSG:31370)
 gbif_sf_l72 <- st_transform(gbif_sf, 31370)
 
-# Koppel DVW indeling eraan
-
-gbif_sf_l72_indeling <- st_join(gbif_sf_l72, dvw_indeling)
 
 # ------------------------------------------------------------------
 # 6. Laad DVW-shapefiles en maak intersecties
 # ------------------------------------------------------------------
-
 input_path <- "./data/input"
+
+# Laad DVW indeling
 dvw_indeling <- st_read(file.path(input_path, "DVW_indeling.gpkg")) %>% st_transform(31370)
+
+# Koppel DVW indeling aan data
+gbif_sf_l72_indeling <- st_join(gbif_sf_l72, dvw_indeling)
+
+# Laad DVW percelen
 dvw_percelen <- st_read(file.path(input_path, "DVW_percelen.gpkg")) %>% st_transform(31370)
+
+# Laad oeverpolygoon
 oever_polygoon <- st_read(file.path(input_path,"24 12 Geosfeer Zonder Percelen.shp"))%>% st_transform(31370)
 
 # Selecteer records die binnen de DVW-indeling vallen
 idx_kern <- st_intersects(gbif_sf_l72_indeling, dvw_indeling)
-EWS_kern <- gbif_sf_l72[lengths(idx_kern) > 0, ]
+EWS_kern <- gbif_sf_l72_indeling[lengths(idx_kern) > 0, ]
 
 # Selecteer records die binnen de DVW-percelen of binnen oeverpolygoon vallen
 in_percelen <- lengths(st_intersects(gbif_sf_l72_indeling, dvw_percelen))
@@ -272,7 +277,10 @@ col_subset <- c(
   "coordinateUncertaintyInMeters",
   "catalogNumber",
   "geometry",
-  "nieuw"
+  "AFD",
+  "DSTRCT",
+  "SCTR"
+  "nieuw",
 )
 
 EWS_kern <- EWS_kern %>% select(all_of(col_subset))
