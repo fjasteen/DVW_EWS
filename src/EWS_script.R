@@ -279,8 +279,8 @@ col_subset <- c(
   "geometry",
   "AFD",
   "DSTRCT",
-  "SCTR"
-  "nieuw",
+  "SCTR",
+  "nieuw"
 )
 
 EWS_kern <- EWS_kern %>% select(all_of(col_subset))
