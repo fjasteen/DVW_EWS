@@ -3,7 +3,7 @@ name: Weekly GBIF Download (met caching & latest)
 on:
   schedule:
     - cron: "0 6 * * 1"   # elke maandag om 06u UTC
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 jobs:
   run-script:
