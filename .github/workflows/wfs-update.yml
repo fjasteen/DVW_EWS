@@ -51,7 +51,7 @@ jobs:
         run: |
           Rscript src/EWS_script.R
 
-	- name: Maak latest.gpkg kopieën
+      - name: Maak latest.gpkg kopieën
         run: |
           # Zoek het nieuwste kern-bestand, maar negeer '_latest'
           kern=$(ls data/output/EWS_kern*.gpkg | grep -v '_latest.gpkg' | sort | tail -n 1)
