@@ -21,7 +21,7 @@ required_packages <- c("tidyverse", "here", "rgbif", "lubridate", "sf", "leaflet
 for (pkg in required_packages) {
   if (!requireNamespace(pkg, quietly = TRUE)) {
     message(paste("Package", pkg, "niet gevonden. Installeren..."))
-    install.packages(pkg, repos = "https://cloud.r-project.org")
+    install.packages(pkg, repos = "https://cloud.r-project.org", type="binary")
   }
 }
 
@@ -158,6 +158,10 @@ gbif_sf <- st_as_sf(
 # Transformeer naar Lambert 72 (EPSG:31370)
 gbif_sf_l72 <- st_transform(gbif_sf, 31370)
 
+# Koppel DVW indeling eraan
+
+gbif_sf_l72_indeling <- st_join(gbif_sf_l72, dvw_indeling)
+
 # ------------------------------------------------------------------
 # 6. Laad DVW-shapefiles en maak intersecties
 # ------------------------------------------------------------------
@@ -165,14 +169,18 @@ gbif_sf_l72 <- st_transform(gbif_sf, 31370)
 input_path <- "./data/input"
 dvw_indeling <- st_read(file.path(input_path, "DVW_indeling.gpkg")) %>% st_transform(31370)
 dvw_percelen <- st_read(file.path(input_path, "DVW_percelen.gpkg")) %>% st_transform(31370)
+oever_polygoon <- st_read(file.path(input_path,"24 12 Geosfeer Zonder Percelen.shp"))%>% st_transform(31370)
 
 # Selecteer records die binnen de DVW-indeling vallen
-idx_kern <- st_intersects(gbif_sf_l72, dvw_indeling)
+idx_kern <- st_intersects(gbif_sf_l72_indeling, dvw_indeling)
 EWS_kern <- gbif_sf_l72[lengths(idx_kern) > 0, ]
 
-# Selecteer records die binnen de DVW-percelen vallen
-idx_percelen <- st_intersects(gbif_sf_l72, dvw_percelen)
-EWS_percelen <- gbif_sf_l72[lengths(idx_percelen) > 0, ]
+# Selecteer records die binnen de DVW-percelen of binnen oeverpolygoon vallen
+in_percelen <- lengths(st_intersects(gbif_sf_l72_indeling, dvw_percelen))
+in_oever <- lengths(st_intersects(gbif_sf_l72_indeling, oever_polygoon))
+idx_totaal <- in_percelen | in_oever                        
+
+EWS_percelen <- gbif_sf_l72_indeling[idx_totaal, ]
 
 # ------------------------------------------------------------------
 # 6b. Opruimen raw dataset en schrijf metadata naar logbestand

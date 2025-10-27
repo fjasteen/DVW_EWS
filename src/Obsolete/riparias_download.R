@@ -1,0 +1,129 @@
+# src/riparias\_download.R
+
+library(curl)
+library(readr)
+library(dplyr)
+library(sf)
+library(stringr)
+library(rgbif)
+library(leaflet)
+library(tools)
+
+# --- 1. GeoJSON downloaden met curl ---
+
+# url <- "https://alert.riparias.be/api/wfs/observations?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=observation&OUTPUTFORMAT=geojson"
+# dest <- "./data/input/ews_full.geojson"
+# 
+# system(sprintf("curl -L -o %s \"%s\"", dest, url))
+# 
+# 
+# # --- 2. GeoJSON inlezen ---
+# 
+# 
+# EWS_WFS <- st_read(dest, quiet = TRUE)
+# EWS_WFS <- st_read("./data/observations.geojson", quiet = TRUE)
+
+
+# --- 3. GBIF-checklist ophalen ---
+
+checklist <- name_lookup(datasetKey = "23e95da2-6095-4778-b893-9af18a310cb6")
+species_keys <- checklist$data %>%
+  filter(!rank %in% c("KINGDOM", "PHYLUM", "CLASS", "ORDER", "FAMILY", "GENUS")) %>%
+  pull(nubKey) %>%
+  unique()
+
+EWS_WFS_spec <- EWS_WFS %>%
+  filter(species_gbif_key %in% species_keys)
+
+# --- 4. Naar sf object in Lambert 72 ---
+
+EWS_WFS_spec_sf <- st_as_sf(EWS_WFS_spec, coords = c("x", "y"), crs = 3857) %>%
+  st_transform(31370)
+
+# --- 5. Inlezen shapefiles uit data/input/ ---
+
+input_path <- "./data/input"
+dvw_indeling <- st_read(file.path(input_path, "DVW_indeling.gpkg")) %>% st_transform(31370)
+dvw_percelen <- st_read(file.path(input_path, "DVW_percelen.gpkg")) %>% st_transform(31370)
+
+# --- 6. Intersecties ---
+
+EWS_kern <- st_filter(EWS_WFS_spec_sf, dvw_indeling)
+EWS_percelen <- st_filter(EWS_WFS_spec_sf, dvw_percelen)
+
+# --- 7. Label nieuwe observaties t.o.v. vorige versie (op stable\_id) ---
+
+label_nieuwe <- function(df, bestand_pad) {
+  if (!file.exists(bestand_pad)) {
+    df$nieuw <- TRUE
+    return(df)
+  }
+  oud <- st_read(bestand_pad, quiet = TRUE)
+  oude_ids <- unique(oud$stable_id)
+  df$nieuw <- !(df$stable_id %in% oude_ids)
+  return(df)
+}
+
+# --- 8. Datumlabel en retentie ---
+
+date_tag <- format(Sys.Date(), "%Y%m%d")
+output_path <- "data/output"
+dir.create(output_path, showWarnings = FALSE, recursive = TRUE)
+
+kern_file <- file.path(output_path, paste0("EWS_kern_", date_tag, ".gpkg"))
+percelen_file <- file.path(output_path, paste0("EWS_percelen_", date_tag, ".gpkg"))
+
+EWS_kern <- label_nieuwe(EWS_kern, tail(sort(list.files(output_path, pattern = "EWS_kern.*gpkg$", full.names = TRUE)), 1))
+EWS_percelen <- label_nieuwe(EWS_percelen, tail(sort(list.files(output_path, pattern = "EWS_percelen.*gpkg$", full.names = TRUE)), 1))
+
+# --- 9. Export met datum ---
+
+st_write(EWS_kern, kern_file, layer = "observaties", delete_dsn = TRUE)
+st_write(EWS_percelen, percelen_file, layer = "observaties", delete_dsn = TRUE)
+
+# --- 10. Retentie: maximaal 6 versies bewaren ---
+
+limit_versions <- function(prefix) {
+  bestanden <- list.files(output_path, pattern = paste0("^", prefix, ".*gpkg$"), full.names = TRUE)
+  if (length(bestanden) > 6) {
+    te_verwijderen <- head(sort(bestanden), length(bestanden) - 6)
+    file.remove(te_verwijderen)
+  }
+}
+limit_versions("EWS_kern")
+limit_versions("EWS_percelen")
+
+# --- 11. Visualisatie (optioneel) ---
+
+layers <- list(
+  EWS_kern = EWS_kern,
+  EWS_percelen = EWS_percelen,
+  dvw_indeling = dvw_indeling,
+  dvw_percelen = dvw_percelen
+)
+layers_wgs <- lapply(layers, st_transform, crs = 4326)
+
+leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  
+  addPolygons(data = layers_wgs$dvw_indeling, color = "#999999", weight = 1, fillOpacity = 0.2, group = "DVW Indeling") %>%
+  addPolygons(data = layers_wgs$dvw_percelen, color = "#666666", weight = 1, fillOpacity = 0.2, group = "DVW Percelen") %>%
+  
+  # EWS Kern: oud
+  addCircleMarkers(data = layers_wgs$EWS_kern[!layers$EWS_kern$nieuw, ],
+                   radius = 4, stroke = FALSE, fillColor = "#3182bd", fillOpacity = 0.7, group = "EWS Kern") %>%
+  # EWS Kern: nieuw
+  addCircleMarkers(data = layers_wgs$EWS_kern[layers$EWS_kern$nieuw, ],
+                   radius = 4, stroke = FALSE, fillColor = "#006400", fillOpacity = 0.9, group = "Nieuwe Kern") %>%
+  
+  # EWS Percelen: oud
+  addCircleMarkers(data = layers_wgs$EWS_percelen[!layers$EWS_percelen$nieuw, ],
+                   radius = 4, stroke = TRUE, color = "#e41a1c", weight = 1, fillOpacity = 1, group = "EWS Percelen") %>%
+  # EWS Percelen: nieuw
+  addCircleMarkers(data = layers_wgs$EWS_percelen[layers$EWS_percelen$nieuw, ],
+                   radius = 4, stroke = TRUE, color = "#ADFF2F", weight = 1, fillOpacity = 1, group = "Nieuwe Percelen") %>%
+  
+  addLayersControl(
+    overlayGroups = c("EWS Percelen", "Nieuwe Percelen", "EWS Kern", "Nieuwe Kern", "DVW Indeling", "DVW Percelen"),
+    options = layersControlOptions(collapsed = FALSE)
+  )
