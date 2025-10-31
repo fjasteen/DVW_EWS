@@ -209,10 +209,10 @@ log_entry <- tibble(
 )
 
 # Pad naar de logfolder
-output_log_dir <- here("data", "output")
-dir.create(output_log_dir, showWarnings = FALSE, recursive = TRUE)
+output_final_dir <- here("data", "output")
+dir.create(output_final_dir, showWarnings = FALSE, recursive = TRUE)
 
-log_file <- file.path(output_log_dir, "gbif_download_log.csv")
+log_file <- file.path(output_final_dir, "gbif_download_log.csv")
 
 # Schrijf of append de log
 if (file.exists(log_file)) {
@@ -228,19 +228,20 @@ message("Download metadata toegevoegd aan: ", log_file)
 # 7. Vergelijk met vorige download en label nieuwe records
 # ------------------------------------------------------------------
 
-# Zoek de laatst opgeslagen bestanden per type
-kern_files <- list.files(output_dir, pattern = "EWS_kern_.*\\.gpkg$", full.names = TRUE)
-percelen_files <- list.files(output_dir, pattern = "EWS_percelen_.*\\.gpkg$", full.names = TRUE)
+# ------------------------------------------------------------------
+# 7. Vergelijk met vorige download en label nieuwe records
+# ------------------------------------------------------------------
 
-if (length(kern_files) > 0 & length(percelen_files) > 0) {
-  message("Vorige datasets gevonden, laad laatste versies in...")
+# Zoek de laatst opgeslagen 'latest' bestanden in de output map
+last_kern_file <- file.path(output_final_dir, "EWS_kern_latest.gpkg")
+last_percelen_file <- file.path(output_final_dir, "EWS_percelen_latest.gpkg")
+
+if (file.exists(last_kern_file) & file.exists(last_percelen_file)) {
+  message("Vorige 'latest' datasets gevonden, laad laatste versies in...")
   
-  # Laad de laatste versies
-  last_kern <- kern_files[which.max(file.mtime(kern_files))]
-  last_percelen <- percelen_files[which.max(file.mtime(percelen_files))]
-  
-  EWS_kern_old <- st_read(last_kern, quiet = TRUE)
-  EWS_percelen_old <- st_read(last_percelen, quiet = TRUE)
+  # Laad de 'latest' versies
+  EWS_kern_old <- st_read(last_kern_file, quiet = TRUE)
+  EWS_percelen_old <- st_read(last_percelen_file, quiet = TRUE)
   
   # Converteer IDs naar character om typefouten te voorkomen
   EWS_kern_old$gbifID <- as.character(EWS_kern_old$gbifID)
@@ -254,7 +255,7 @@ if (length(kern_files) > 0 & length(percelen_files) > 0) {
   EWS_percelen$nieuw <- !(EWS_percelen$gbifID %in% EWS_percelen_old$gbifID)
   
 } else {
-  message("Geen oude datasets gevonden, markeer alles als nieuw.")
+  message("Geen 'latest' datasets gevonden, markeer alles als nieuw.")
   EWS_kern$nieuw <- TRUE
   EWS_percelen$nieuw <- TRUE
 }
@@ -299,9 +300,12 @@ EWS_percelen <- EWS_percelen %>%
   left_join(vernacular_lookup, by = c("taxonKey" = "nubKey")) %>%
   select(all_of(col_subset), vernacularName)
 
-# Sla de huidige versies op (voor de volgende run)
-st_write(EWS_kern, file.path(output_dir, paste0("EWS_kern_", Sys.Date(), ".gpkg")), delete_dsn = TRUE)
-st_write(EWS_percelen, file.path(output_dir, paste0("EWS_percelen_", Sys.Date(), ".gpkg")), delete_dsn = TRUE)
+# Sla de huidige versies op (MET DATUM) in de 'output_final_dir'
+# De YAML-actie zal deze bestanden vinden en kopiëren naar '_latest'
+st_write(EWS_kern, file.path(output_final_dir, paste0("EWS_kern_", Sys.Date(), ".gpkg")), delete_dsn = TRUE)
+st_write(EWS_percelen, file.path(output_final_dir, paste0("EWS_percelen_", Sys.Date(), ".gpkg")), delete_dsn = TRUE)
+
+message("Nieuwe gedateerde bestanden opgeslagen in: ", output_final_dir)
 
 # ------------------------------------------------------------------
 # 8. Visualisatie in Leaflet
