@@ -51,35 +51,53 @@ jobs:
         run: |
           Rscript src/EWS_script.R
 
-      - name: Maak latest.gpkg kopieën
+      # --- HIER IS DE AANGEPASTE STAP ---
+      - name: Maak latest.gpkg kopieën en ruim oude archieven op
         run: |
-          # Zoek het nieuwste kern-bestand, maar negeer '_latest'
-          kern=$(ls data/output/EWS_kern*.gpkg | grep -v '_latest.gpkg' | sort | tail -n 1)
-          
-          # Zoek het nieuwste percelen-bestand, maar negeer '_latest'
-          percelen=$(ls data/output/EWS_percelen*.gpkg | grep -v '_latest.gpkg' | sort | tail -n 1)
+          # Definieer de output map
+          output_dir="data/output"
 
-          # Controleer of de bestanden daadwerkelijk bestaan voordat u kopieert
-          if [ -f "$kern" ]; then
-            echo "Kopieer bron kern: $kern"
-            cp "$kern" data/output/EWS_kern_latest.gpkg
+          # --- Verwerk EWS_kern ---
+          # Zoek het nieuwste kern-bestand (negeer '_latest')
+          latest_kern_archive=$(ls $output_dir/EWS_kern_*.gpkg 2>/dev/null | grep -v '_latest.gpkg' | sort -r | head -n 1)
+          
+          if [ -f "$latest_kern_archive" ]; then
+            echo "Nieuwste kern archief: $latest_kern_archive"
+            # Kopieer naar _latest
+            cp "$latest_kern_archive" "$output_dir/EWS_kern_latest.gpkg"
+            
+            # Ruim alle OUDE kern archieven op
+            # List alle kern archieven (niet _latest), behalve de nieuwste, en verwijder ze
+            ls $output_dir/EWS_kern_*.gpkg 2>/dev/null | grep -v '_latest.gpkg' | grep -v "$latest_kern_archive" | xargs -r rm
+            echo "Oude kern-archieven opgeruimd."
           else
             echo "::error:: Geen nieuw EWS_kern bronbestand gevonden."
             exit 1
           fi
 
-          if [ -f "$percelen" ]; then
-            echo "Kopieer bron percelen: $percelen"
-            cp "$percelen" data/output/EWS_percelen_latest.gpkg
+          # --- Verwerk EWS_percelen ---
+          # Zoek het nieuwste percelen-bestand (negeer '_latest')
+          latest_percelen_archive=$(ls $output_dir/EWS_percelen_*.gpkg 2>/dev/null | grep -v '_latest.gpkg' | sort -r | head -n 1)
+
+          if [ -f "$latest_percelen_archive" ]; then
+            echo "Nieuwste percelen archief: $latest_percelen_archive"
+            # Kopieer naar _latest
+            cp "$latest_percelen_archive" "$output_dir/EWS_percelen_latest.gpkg"
+            
+            # Ruim alle OUDE percelen archieven op
+            ls $output_dir/EWS_percelen_*.gpkg 2>/dev/null | grep -v '_latest.gpkg' | grep -v "$latest_percelen_archive" | xargs -r rm
+            echo "Oude percelen-archieven opgeruimd."
           else
             echo "::error:: Geen nieuw EWS_percelen bronbestand gevonden."
             exit 1
           fi
 
+      # --- HIER IS DE TWEEDE AANGEPASTE STAP ---
       - name: Commit & push updated data
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "actions@github.com"
-          git add data/output/*.gpkg data/output/gbif_download_log.csv
+          # Voeg alle wijzigingen in de data/output map toe (nieuwe, gewijzigde én verwijderde bestanden)
+          git add data/output/
           git commit -m "Automated update: $(date +'%Y-%m-%d')" || echo "No changes"
           git push https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git HEAD:${{ github.ref }}
