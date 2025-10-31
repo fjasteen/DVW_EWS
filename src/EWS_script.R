@@ -228,10 +228,6 @@ message("Download metadata toegevoegd aan: ", log_file)
 # 7. Vergelijk met vorige download en label nieuwe records
 # ------------------------------------------------------------------
 
-# ------------------------------------------------------------------
-# 7. Vergelijk met vorige download en label nieuwe records
-# ------------------------------------------------------------------
-
 # Zoek de laatst opgeslagen 'latest' bestanden in de output map
 last_kern_file <- file.path(output_final_dir, "EWS_kern_latest.gpkg")
 last_percelen_file <- file.path(output_final_dir, "EWS_percelen_latest.gpkg")
@@ -284,14 +280,11 @@ col_subset <- c(
   "nieuw"
 )
 
-EWS_kern <- EWS_kern %>% select(all_of(col_subset))
-EWS_percelen <- EWS_percelen %>% select(all_of(col_subset))
-
 # Vernaculaire naam tabel inladen
 vernacular_lookup <- read_csv2("./data/input/vernacular_names.csv") %>%
   select(nubKey, vernacularName)
 
-# Voeg vernacularName toe aan beide datasets
+# Voeg vernacularName toe en selecteer de definitieve kolommen (in één keer)
 EWS_kern <- EWS_kern %>%
   left_join(vernacular_lookup, by = c("taxonKey" = "nubKey")) %>%
   select(all_of(col_subset), vernacularName)
@@ -299,6 +292,7 @@ EWS_kern <- EWS_kern %>%
 EWS_percelen <- EWS_percelen %>%
   left_join(vernacular_lookup, by = c("taxonKey" = "nubKey")) %>%
   select(all_of(col_subset), vernacularName)
+
 
 # Sla de huidige versies op (MET DATUM) in de 'output_final_dir'
 # De YAML-actie zal deze bestanden vinden en kopiëren naar '_latest'
