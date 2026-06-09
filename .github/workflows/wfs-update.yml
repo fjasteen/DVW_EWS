@@ -43,9 +43,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.R_LIBS_USER }}
-          # 3. FIX: Je hebt geen DESCRIPTION-bestand, dus we cachen op basis van het R-script zelf
-          key: ${{ runner.os }}-r-${{ hashFiles('src/EWS_script.R') }}
-          restore-keys: ${{ runner.os }}-r-
+          # Door '-v5-' (of een hogere versie) te gebruiken, negeren we de oude corrupte cache
+          key: ${{ runner.os }}-r-v5-${{ hashFiles('src/EWS_script.R') }}
+          restore-keys: ${{ runner.os }}-r-v5-
 
       - name: Install R dependencies
         run: |
