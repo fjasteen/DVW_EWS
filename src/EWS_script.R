@@ -21,7 +21,7 @@ required_packages <- c("tidyverse", "here", "rgbif", "lubridate", "sf", "leaflet
 for (pkg in required_packages) {
   if (!requireNamespace(pkg, quietly = TRUE)) {
     message(paste("Package", pkg, "niet gevonden. Installeren..."))
-    install.packages(pkg, repos = "https://cloud.r-project.org", type="binary")
+    install.packages(pkg) # 
   }
 }
 
