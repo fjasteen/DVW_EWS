@@ -31,6 +31,7 @@ library(rgbif)          # Communicatie met de GBIF API
 library(lubridate)      # Datums en tijden
 library(sf)             # Ruimtelijke objecten
 library(dplyr)          # Data bewerkingen
+library(leaflet)
 
 # ------------------------------------------------------------------
 # 1. Definieer query parameters
